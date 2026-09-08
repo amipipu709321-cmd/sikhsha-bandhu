@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Siksha Bandhu AI - JEE & Olympiad Guru</title>
+<link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#4f46e5">
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+  :root { --bg:#0f172a; --card:#1e293b; --text:#e2e8f0; --accent:#38bdf8; }
+ .light { --bg:#f8fafc; --card:#ffffff; --text:#0f172a; --accent:#0284c7; }
+  body { margin:0; font-family: sans-serif; background:var(--bg); color:var(--text); display:flex; height:100vh; }
+ .sidebar { width:260px; background:var(--card); padding:15px; border-right:1px solid #334155; overflow-y:auto; }
+ .main { flex:1; display:flex; flex-direction:column; }
+ .chat { flex:1; overflow-y:auto; padding:20px; }
+ .msg { max-width:80%; padding:12px 16px; border-radius:12px; margin:10px 0; background:var(--card); }
+ .user { align-self:flex-end; background:var(--accent); color:white; margin-left:auto; }
+ .input-area { display:flex; gap:10px; padding:15px; background:var(--card); }
+  input { flex:1; padding:12px; border-radius:8px; border:none; outline:none; }
+  button { padding:12px 15px; border:none; border-radius:8px; background:var(--accent); color:white; cursor:pointer; }
+</style>
+</head>
+<body>
+<div class="sidebar">
+  <h3>📚 Siksha Bandhu</h3>
+  <button onclick="document.body.classList.toggle('light')">🌗 Dark/Light</button>
+  <hr>
+  <h4>History</h4>
+  <div id="history"></div>
+  <hr>
+  <input type="file" id="imgInput" accept="image/*" capture="environment" hidden>
+  <button onclick="document.getElementById('imgInput').click()">📷 Camera / Upload</button>
+  <p id="imgStatus"></p>
+</div>
+<div class="main">
+  <div class="chat" id="chat">
+    <div class="msg">Namaste! Ami Siksha Bandhu. JEE / Olympiad er jekono prosno chobi tule dao ba likhe dao, ami Banglay sohoj kore bujhiye debo. 🎯</div>
+  </div>
+  <div class="input-area">
+    <button id="voiceBtn">🎤</button>
+    <input id="userInput" placeholder="Prosno likho ba bolo... (Bengali/English)">
+    <button onclick="sendMsg()">Send 🚀</button>
+  </div>
+</div>
+
+<script>
+let base64Img = null;
+const chat = document.getElementById('chat');
+const input = document.getElementById('userInput');
+
+document.getElementById('imgInput').onchange = e => {
+  const file = e.target.files[0];
+  const reader = new FileReader();
+  reader.onload = () => {
+    base64Img = reader.result;
+    document.getElementById('imgStatus').innerText = "✅ Chobi ready!";
+  };
+  reader.readAsDataURL(file);
+};
+
+async function sendMsg(){
+  const text = input.value;
+  if(!text &&!base64Img) return;
+  chat.innerHTML += `<div class="msg user">${text || 'Chobi pathalam'}</div>`;
+  document.getElementById('history').innerHTML += `<div>• ${text.substring(0,20)}</div>`;
+  input.value = "";
+  const typing = document.createElement('div');
+  typing.className='msg'; typing.innerText='Siksha Bandhu likhche...'; chat.appendChild(typing);
+
+  const res = await fetch('/ask', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({text: text, image: base64Img})
+  });
+  const data = await res.json();
+  typing.remove();
+  chat.innerHTML += `<div class="msg">${marked.parse(data.answer)}</div>`;
+  base64Img = null;
+  document.getElementById('imgStatus').innerText = "";
+  chat.scrollTop = chat.scrollHeight;
+
+  // Voice output
+  const utter = new SpeechSynthesisUtterance(data.answer.replace(/[*#`]/g,'').substring(0,300));
+  utter.lang = 'bn-IN'; speechSynthesis.speak(utter);
+}
+
+input.addEventListener('keypress', e=>{ if(e.key==='Enter') sendMsg(); });
+
+// Voice input
+let rec;
+document.getElementById('voiceBtn').onclick = () => {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  rec = new SR(); rec.lang='bn-IN'; rec.start();
+  rec.onresult = e => { input.value = e.results[0][0].transcript; sendMsg(); };
+};
+</script>
+</body>
+</html>
