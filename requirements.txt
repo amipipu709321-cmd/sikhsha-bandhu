@@ -1,0 +1,6 @@
+flask
+gunicorn
+groq
+PyPDF2
+python-telegram-bot
+python-dotenv
